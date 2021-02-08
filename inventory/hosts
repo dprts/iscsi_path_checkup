@@ -1,0 +1,6 @@
+[filers]
+cluster1.example.com ansible_connection=local ansible_host=localhost
+cluster2.example.com ansible_connection=local ansible_host=localhost
+
+[www_servers]
+www-server.example.com

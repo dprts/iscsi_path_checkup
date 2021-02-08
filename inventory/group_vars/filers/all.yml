@@ -1,0 +1,4 @@
+---
+target_directory: "/var/www/html/multipath_checks"
+json_data_directory: "/var/www/html/multipath_checks/json_data"
+script_directory: "/usr/local/bin"

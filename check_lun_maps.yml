@@ -1,0 +1,79 @@
+- hosts: filers
+  collections:
+    - netapp.ontap
+  gather_facts: no
+  vars:
+    cluster: "{{ cluster_name }}"
+    input: &input
+      hostname: "{{ inventory_hostname }}"
+      username: "{{ ansible_username }}"
+      password: "{{ ansible_password }}"
+
+  tasks:
+  - name: Gather ONTAP Information
+    na_ontap_info:
+      <<: *input
+      https: true
+      validate_certs: false
+      gather_subset:
+        - "lun_map_info"
+        - "lun_info"
+        - "igroup_info"
+        - "iscsi_initiator_list_entry_info"
+    register: ontap_out
+
+  - block:
+
+    - set_fact:
+        final_stuff_dude: "{{ ontap_out | validate_paths }}"
+
+    - debug:
+        msg: "{{ final_stuff_dude }}"
+
+    - name: Create {{ target_directory }}
+      file:
+        path: "{{ target_directory }}"
+        state: directory
+        mode: 0755
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['www_servers'] }}"
+      when: final_stuff_dude is defined
+
+    - name: Create {{ json_data_directory }}
+      file:
+        path: "{{ json_data_directory }}"
+        state: directory
+        mode: 0755
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['www_servers'] }}"
+      when: final_stuff_dude is defined
+
+    - name: Generate json output
+      copy:
+        content: "{{ lookup('template', 'login_data.json.j2') | to_nice_json(indent=2, sort_keys=False) }}"
+        dest: "{{ json_data_directory }}/{{ cluster }}_login_data.json"
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['www_servers'] }}"
+      when: final_stuff_dude is defined
+
+    - name: Copy script to target host
+      copy:
+        content: "{{ lookup('file', 'convert_to_html.py') }}"
+        dest: "{{ script_directory }}/convert_to_html.py"
+        mode: 0755
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['www_servers'] }}"
+      when: final_stuff_dude is defined
+
+    - name: Run convertion
+      command:
+        "{{ script_directory }}/convert_to_html.py {{ json_data_directory }}/{{ cluster }}_login_data.json {{ target_directory }}/{{ cluster }}_login_data.html"
+      delegate_to: "{{ item }}"
+      loop: "{{ groups['www_servers'] }}"
+      when: final_stuff_dude is defined
+
+    when:
+    - ontap_out.ontap_info.igroup_info != None
+    - ontap_out.ontap_info.iscsi_initiator_list_entry_info != None
+    - ontap_out.ontap_info.lun_info != None
+    - ontap_out.ontap_info.lun_map_info != None

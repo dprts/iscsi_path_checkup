@@ -1,0 +1,26 @@
+[
+{% for initiator in final_stuff_dude %}
+  {% for mapped_lun in initiator.mapped_luns%}
+
+{
+"initiator": "{{ initiator.initiator }}",
+"vserver": "{{ initiator.vserver }}",
+"lun_path": "{{ mapped_lun.path }}",
+"lun_id": "{{ mapped_lun.lun_id }}",
+"paths": "{{ initiator.multipath_paths }}",
+"multipath_state": {{ initiator.multipath_state | to_nice_json() }},
+"connected_lifs": "{{ initiator.login_status | map(attribute='lif') | list | join(',') }}",
+"initiator_aliasname": "{{ initiator.login_status | map(attribute='initiator_aliasname') | list | unique | join(',') }}"
+{# "lifs": "{{ login_status.lif }}" #}
+
+    {% if loop.last %}
+}
+    {%else%}
+},
+    {% endif %}
+  {% endfor %}
+  {% if not loop.last %}
+  ,
+  {% endif %}
+{% endfor %}
+]
